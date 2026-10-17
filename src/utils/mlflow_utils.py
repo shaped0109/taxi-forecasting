@@ -11,6 +11,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 import mlflow
+from mlflow.tracking import MlflowClient
 
 from src.config import Config, get_config
 
@@ -55,7 +56,10 @@ def ensure_experiment(problem: str, config: Config | None = None) -> str:
     name = experiment_name(problem, config)
     root = artifact_root(config)
     existing = mlflow.get_experiment_by_name(name)
-    if existing is None:
+    if existing is not None and existing.lifecycle_stage == "deleted":
+        MlflowClient().restore_experiment(existing.experiment_id)
+        logger.info("Restored deleted experiment %s", name)
+    elif existing is None:
         if root:
             mlflow.create_experiment(name, artifact_location=root)
             logger.info("Created experiment %s with artifact root %s", name, root)
